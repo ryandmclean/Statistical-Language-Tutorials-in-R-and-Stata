@@ -1,0 +1,146 @@
+---
+title: "Basic Statistics"
+output: html_document
+---
+#Setup
+If you need to reload the datasets and libraries, you can run the following. 
+```{r}
+library(devtools)
+library(tidyverse)
+library(Hmisc)
+library(data.table)
+library(plyr)
+library(psych)
+library(summarytools)
+library(car)
+```
+```{r}
+data(mtcars)
+iceCream <- haven::read_dta("IceCream.dta")
+exam <- haven::read_spss ("Examinations.sav")
+flavor <- read.csv(file="flavor2.csv", header=FALSE, sep = ",")
+ervisits <- read.csv(file = "ervisitsCSV.csv", header = TRUE, sep = ",")
+```
+#Examining Data
+Before you run any statistics, you want to make sure that you understand your data, here are some ways you can examine the distribution of those data. 
+```{r}
+summary(mtcars[,c("mpg", "hp", "cyl")]) #Like Summarize in Stata, gives mean, median, percentiles, etc. 
+summarytools::freq(mtcars[,c("mpg", "hp", "cyl")]) #Run the frequencies to see the distribution
+```
+
+#Mean Difference Tests
+Many times, you want to know if two groups are significantly different from each other. To do this, you would run a t-test
+## Independent 2-group t-test
+```{r}
+t.test(exam$gpa ~ exam$gender) # where the first variable is numeric and the second is dichotomous/categorical
+```
+## Paired Sample t-test
+If you want to check whether two distributions are different on two variables for a single person. For example this can be useful to check if your intervention worked
+```{r}
+t.test(ervisits$y2000, ervisits$y2001, paired = TRUE)
+```
+## One Sample t-test again a value
+Sometimes, you might want to check if your distribution is significantly different from a certain number (e.g., a clinical cutoff or a mean).
+```{r}
+t.test(ervisits$y2001, mu=400)
+t.test(ervisits$y2002, mu=mean(ervisits$y2001))
+```
+
+#Analysis of Variance (ANCOVA)
+Sometimes, you might want to know if there are differences across more than two groups, or after controlling for other variables, to do this, you run an ANOVA
+```{r}
+carsmodel <- aov(mpg ~ cyl + disp, data=mtcars)
+anova(carsmodel)
+```
+
+#Correlation
+A correlation is a linear assocation between two variables. R has a few different options available. First of all, you can use the 'cor' command to give you a matrix of correlation coefficients, but that does not print out the significance values. The 'cor.test' command gives you the p-value for a single bivariate correlation. 
+
+By the way, the following code 'mtcars[,c("mpg", "cyl", "disp")]' means that I want to create a subset of the dataset mtcars. The ',' means take all rows, and the 'c()' contains the column names that I want to include.  
+```{r}
+cor(mtcars[,c("mpg", "cyl", "disp")], use = "complete") # Gives a correlation matrix without p-values
+cor.test(mtcars$mpg, mtcars$cyl, use = "pairwise.complete.obs") # Significance information for a bivariate correlation
+```
+
+##User defined correlation function
+Because R is free, it is also open-source, meaning that anyone can contribute to it. Therefore, if you look online, you can probably find code that is similar to anything you might want to do. This function is an example of that. Someone wanted to be able to create a correlation matrix that told you the significance values for each correlation. If you want to use this function, the corstars.R file needs to be in your working directory, and you need to add it to your library as follows. 
+  Key for corstars
+  ****p < .0001
+  *** p < .001
+  **  p < .01
+  *   p < .05
+```{r}
+source("corstars.R") # Like adding a library, but for a file in your working directory
+corstars(mtcars[,c("mpg", "cyl", "disp")])
+```
+
+#Linear Regression
+Regressions are called linear models in R. Thy syntax is outlined by giving the dependent/outcome variable ~ independent variables (separated by +). You also need to tell it which dataset you are going to be using (remember the object-oriented nature of the language). 
+```{r}
+carsmodel <- lm(mpg ~ cyl + disp, data=mtcars)
+summary(carsmodel)
+```
+
+##Plot of a linear regression
+This is best seen when doing bivariate regression
+```{r}
+carsmodel <- lm(mpg~disp, data = mtcars)
+summary(carsmodel)
+carscoef <- coef(carsmodel)
+plot(mtcars$disp, mtcars$mpg)
+abline(carscoef)
+
+## Add interction plots
+```
+##Interaction Effects
+```{r}
+install.packages("sjPlot")
+install.packages("sjmisc")
+install.packages("ggplot2")
+```
+```{r}
+library(sjPlot)
+library(sjmisc)
+library(ggplot2)
+data(efc)
+theme_set(theme_sjplot())
+
+# make categorical
+efc$c161sex <- to_factor(efc$c161sex)
+
+# fit model with interaction
+fit <- lm(neg_c_7 ~ c12hour + barthtot * c161sex, data = efc)
+
+#Plots where you want to split by a categorical variable
+plot_model(fit, type = "int",ci.lvl = NA) # Assumes you want an "int"-eraction plot and grabs it
+plot_model(fit, type = "int") # Assumes you want an "int"-eraction plot and grabs it
+plot_model(fit, type = "pred", terms = c("barthtot", "c161sex"),ci.lvl = NA) # Specify the variables
+
+
+# Plots where your moderator is a continuous variable
+fit <- lm(neg_c_7 ~ c12hour + c161sex * barthtot, data = efc) # Note that now the continuous variable is now 2nd in the interaction term
+plot_model(fit, type = "int", mdrt.values = "meansd",ci.lvl = NA) # Plots the means and +-1 standard deviation
+plot_model(fit, type = "pred", terms = c("c161sex", "barthtot [0, 100]"),ci.lvl = NA) # You can also specify salient values of the continuous that you want
+
+
+
+# 3-Way Interactions
+# fit model with 3-way-interaction
+fit <- lm(neg_c_7 ~ c12hour * barthtot * c161sex, data = efc)
+
+# select only levels 30, 50 and 70 from continuous variable Barthel-Index
+plot_model(fit, type = "pred", terms = c("c12hour", "barthtot [30,50,70]", "c161sex"), ci.lvl = NA)
+
+```
+##Other Linear Regression Plots
+```{r}
+model1=lm(mpg~disp, data = mtcars) #Estimate a regression model
+model1 # Prints out just the coefficients
+summary(model1) #Prints out regression summary (R2, F, more stuff)
+
+plot(mpg~disp, xlab="Displacement", ylab="Miles per Gallon",data = mtcars) #Scatter plot
+abline(model1, col="red") # Adds the regression line to the previous plot command
+coplot(mpg~disp|am, panel = panel.smooth, data = mtcars) # Split graphs by Transmission style (am)
+```
+
+

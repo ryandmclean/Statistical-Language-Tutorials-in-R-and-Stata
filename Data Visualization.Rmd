@@ -1,0 +1,141 @@
+---
+title: "Data Visualization"
+output: html_document
+---
+#Setup
+If you need to reload the datasets and libraries, you can run the following. 
+```{r}
+library(devtools)
+library(tidyverse)
+library(Hmisc)
+library(data.table)
+library(plyr)
+library(psych)
+library(summarytools)
+library(car)
+```
+```{r}
+data(mtcars)
+iceCream <- haven::read_dta("IceCream.dta")
+exam <- haven::read_spss ("Examinations.sav")
+flavor <- read.csv(file="flavor2.csv", header=FALSE, sep = ",")
+```
+
+
+#Simple Histogram and Scatter plot (univariate visualization)
+If you would like to look at graphs for one specific variable, you can do either a histogram or a scatterplot based on what makes more sense with your data.
+```{r}
+# This is a simple way that uses the same words we are used to, but you will see that using the ggplot command is much better and you can do some incredible stuff with it. 
+
+#Histogram
+y <- count(exam$act)
+barplot(y$freq)
+barplot(y$freq, names.arg = y$x,
+        main = "Distribution of ACT Scores",
+        col = "blue")
+
+#Scatter plot
+plot(exam$gpa) #Scatterplot of a single variable
+plot(exam$gpa, type = "l") # Connects all the points with a line
+```
+# More complex univariate visualization
+```{r}
+#Histogram
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut)) 
+
+# Similar to a box/whisker plot
+ggplot(data = diamonds) + 
+  stat_summary(
+    mapping = aes(x = cut, y = depth),
+    fun.ymin = min,
+    fun.ymax = max,
+    fun.y = median
+  )
+
+#A more common Box plot 
+ggplot(data = mpg, mapping = aes(x = class, y = hwy)) + 
+  geom_boxplot()
+# Flip the box plot for readability
+ggplot(data = mpg, mapping = aes(x = class, y = hwy)) + 
+  geom_boxplot() +
+  coord_flip()
+```
+#Fun Color Options for histograms
+```{r}
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, colour = cut))
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = cut))
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = clarity))
+
+#Position = dodge puts different categories right next to each other
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = clarity), position = "dodge")
+```
+
+#Scatter plot
+Examining one variable can be very interesting, but often it is more fun to examine multiple variables, the syntax here is similar 
+```{r}
+plot(exam$gpa, exam$sat)
+
+plot(exam$gpa, exam$sat)
+abline(v=3.0) #Print a specific line for examination of a cutoff
+```
+
+#More complex scatter plots
+Many people have heard that R is one of the best visualization tools in the industry but nothing here has been so very special. Here is one example of some cool stuff you can do and I encourage you to look here "https://r4ds.had.co.nz/data-visualisation.html" for more examples of cool visualizations. 
+```{r}
+#library(tidyverse)
+#mpg is a dataset provided by R, but you could do this with your own. 
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy))
+
+# Color the graph by another variable
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, color = class))
+
+# Change the shape of the data point based on another variable
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, shape = class))
+
+# Split the plot by a categorical variable
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) + 
+  facet_wrap(~ class, nrow = 2)
+```
+
+```{r}
+ggplot(data = mpg) +
+  geom_smooth(mapping = aes(x = displ, y = hwy))
+              
+ggplot(data = mpg) +
+  geom_smooth(mapping = aes(x = displ, y = hwy, group = drv))
+    
+ggplot(data = mpg) +
+  geom_smooth(
+    mapping = aes(x = displ, y = hwy, color = drv),
+    show.legend = FALSE
+  )
+
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  geom_smooth(mapping = aes(x = displ, y = hwy))
+```
+
+```{r}
+bar <- ggplot(data = diamonds) + 
+  geom_bar(
+    mapping = aes(x = cut, fill = cut), 
+    show.legend = FALSE,
+    width = 1
+  ) + 
+  theme(aspect.ratio = 1) +
+  labs(x = NULL, y = NULL)
+
+bar + coord_flip()
+bar + coord_polar()
+```

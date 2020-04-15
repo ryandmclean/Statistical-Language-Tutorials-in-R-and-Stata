@@ -1,0 +1,221 @@
+---
+title: "Data Management"
+author: "Ryan McLean - rdmclean01@gmail.com"
+output: html_document
+---
+#Useful keyboard shortcuts
+Run Selection: CTRL + Enter
+Run whole script: CTRL + ALT + R
+Delete Selected Line: CTRL + D
+Run a script through selected line: CTRL + ALT + B
+Comment a section: CTRL + SHIFT + C
+#Working Directory
+R works out of a single directory, meaning that whenever you want to run something in R, you should try to keep it confined to a single folder. If you look at the bottom right of your screen, you see a files tab, click on it. Then, click on the 3 dots on the right and navigate to the folder you want to work from. Then, click on the "More" gear and click on "Set As working Directory". Or, you can use the syntax command listed here. *Note the direction of the /, it is likely backwards from a typical copy/paste of a path from Windows. 
+Run this in the command window if you are using an RMD. Or go to https://philmikejones.me/tutorials/2015-05-20-set-root-directory-knitr/ for help with chunks
+```{r}
+setwd("C:/Users/rdmclean/Downloads")
+setwd("C:/Users/rdmclean/Box/FHSSResearch/Workshops/R workshop/Fall 2019")
+```
+
+#Installing Packages
+One of the first and most important parts of working in R is getting the packages that you need set up. Every time that I start using a new computer, I run the same lines so that I have everything that I need to do the work that I need to do. 
+```{r}
+install.packages(c("Hmisc","data.table", "tidyverse", "plyr")) # Good ones to have, allows you to import from Stata, SPSS
+install.packages("devtools")
+install.packages("summarytools")
+install.packages("lavaan") # Used for SEM
+install.packages("lavaanPlot") # Used for SEM diagrams
+install.packages("psych",dependencies=TRUE) #the minimum requirement
+install.packages(c("psych","GPArotation"),dependencies=TRUE) #required for factor analysis
+install.packages(c("psych","sem"), dependencies=TRUE) # For CFA
+install.packages("car")
+install.packages("reshape")
+```
+
+#Using your Packages
+Once you have installed your packages (probably only needed the first time), you also need to tell R that you will be using those packages (needed every single time you open R). You do this by telling R that you would like to use the library. Included here are some of the most common, that should have been installed with the lines above. 
+```{r}
+library(devtools)
+library(tidyverse)
+library(Hmisc)
+library(data.table)
+library(plyr)
+library(psych)
+library(summarytools)
+library(car)
+```
+
+#In case of package error
+R has a useful function where you can request help on something by going to the console and typing in the thing you are concerned about with the ? before it. 
+```{r}
+??lavaan
+?hmisc
+```
+
+#Importing Datasets
+There are a number of ways to import your data into R which can be found online. These are some of my personal favorites for working with the files that social scientists are interested in. 
+##Stata
+```{r}
+library(tidyverse) # Includes the haven function
+iceCream <- haven::read_dta("IceCream.dta")
+head(iceCream)
+relationship <- haven::read_dta("Relationship.dta")
+head(relationship)
+```
+##SPSS
+```{r}
+exam <- haven::read_spss ("Examinations.sav")
+head(exam)
+```
+##CSV Files
+Although I would highly recommend going into Stata or SPSS to do your data cleaning, if you do want to pull something in from a csv, you can use the following function to pull in the data. 
+```{r}
+flavor <- read.csv(file="flavor2.csv", header=FALSE, sep = ",")
+head(flavor)
+```
+
+##Other data
+R also provides some public access datasets that it pulls from the internet when requested. One example is mtcars. If you have other questions about pulling straight
+```{r}
+data(mtcars)
+head(mtcars)
+```
+
+#Examining your data
+If you would like to see some basic summary statistics for a dataset, use the summary command
+```{r}
+summary(mtcars) #Like Summarize in Stata, gives mean, median, percentiles, etc. 
+summarytools::freq(mtcars$gear) #Run the frequencies to see the distribution
+```
+
+#Accessing a column
+As social scientists, we are much more likely to only want to access specific columns instead of looking at the whole thing. R was not built by social scientists, it was built by programmers, so R is an object-oriented language. So, when you want to access a specific column of a datset, you need to access the dataset and then tell it which column is of interest to you.
+```{r}
+summary(mtcars$mpg)
+```
+#Accessing multiple columns
+If you would like to access multiple columns, you can use the following syntax, it asks for all rows, and the columns listed in between the c()
+```{r}
+summary(mtcars[,c("mpg", "cyl", "disp")])
+```
+
+#Attaching data for ease of use
+If you are only going to work with 1 dataset, it can be useful to not have to deal with the long object-oriented notation. To access columns just by their name, you can use the attach command. 
+```{r}
+attach(mtcars)
+summary(mpg) # You don't need to reference the dataset, just the variable name
+```
+
+#Data Management
+Sometimes it will be necessary to perform a few functions to clean up your data, here are some options for you. 
+##Renaming a column(s)
+```{r}
+library(data.table) #Setnames is included in this library
+setnames(flavor, old=c("V1", "V2", "V3", "V4"), new=c("Name", "Age","Favorite", "Gender")) #Can rename as many as you want
+```
+##Renaming a dataset
+What if you get tired of typing out a long name and would rather refer to something shorter. You can rename a dataset by simply copying it to a dataset with a shorter name
+```{r}
+mydata <- exam
+
+mydataSmall <- exam[,c("gender", "age","gpa")]
+head(mydataSmall)
+
+mydataSmall2 <- exam[,c(2:4,6)]
+head(mydataSmall2)
+
+myScale <- relationship[ , grepl("rsat", names(relationship))]
+head(myScale)
+```
+##Recoding
+For more information on recoding and the things you can do, please visit this website (http://rprogramming.net/recode-data-in-r/)
+```{r}
+library(car)
+#Creating a Dichotomous Variable
+  #Instead of c(1,2,3), you could also have 1:3
+exam$raceRecode <- recode(exam$race, "0=1;c(1,2,3)=0") # Recode as a white versus non-white dichotomous
+exam$genderRecode <- recode(exam$gender, "1=0;2=1; else = NA") # Recode gender to be dichotomous
+
+# Reverse Code
+flavor$FavoriteRV <- recode(flavor$Favorite,"1=4;2=3;3=2;4=1") # Reverse Code a variable
+
+# Specify a specific value to be missing
+flavor$FavoriteRV <- recode(flavor$FavoriteRV, "1=NA")
+
+```
+
+#Working with Scales / Factors
+Whenever you are trying to work with multiple items that measure the same thing (as is very common in the social sciences), it can be useful to create a scale. A scale is a simple average of the score of the each item. 
+```{r}
+## Try to find a better way to combine scales FIXME
+relationship <- haven::read_dta("Relationship.dta")
+head(relationship)
+relationship$satisfaction <- (relationship$rsat1 + relationship$rsat2 
+                              + relationship$rsat3 + relationship$rsat4) / 4
+summary(relationship)
+```
+
+##Reliability alpha Coefficient
+It is often necessary to include some numerical evidence that your items are measuring the same thing, for a scale that is called a reliability coefficient. This function uses listwise deletion. 
+```{r}
+alpha(relationship[,c("rsat1","rsat2","rsat3","rsat4")], na.rm = FALSE)
+```
+
+##Reshaping Data
+There are some statistical techniques that require data to be in a long format (e.g., multilevel modelling). 
+```{r}
+library(haven)
+library(reshape2)
+#UCLA data (one index)
+wide_scores <- read.csv('https://stats.idre.ucla.edu/stat/r/faq/hsb2.csv')
+
+long_scores <- melt(wide_scores, id.vars=c("id", "female", "race", "ses", "schtyp", "prog"), variable.name = "subj", value.name = "score")
+
+back_to_wide_scores <- dcast(long_scores, id+female+race+ses+schtyp+prog~subj, value.var = "score")
+
+
+#STATA data (two indexes)
+wide_stata <- read_dta("VARSTOCASES.dta")
+
+long_stata <- melt(wide_stata, id.vars = c("ID"), variable.name = "index", value.name = "outcome")
+long_stata <- data.frame(ID = long_stata$ID, gender = substr(long_stata$index, 2, 2), time = substr(long_stata$index, 3, 3), outcome = long_stata$outcome)
+
+combined_indexes <- data.frame(ID = long_stata$ID, index = paste(long_stata$gender, long_stata$time), outcome = long_stata$outcome)
+back_to_wide_stata <- dcast(combined_indexes, ID~index, value.var="outcome")
+```
+
+Here is an alternate method to implement it in a different way since this is pretty complex. 
+```{r}
+hsb2 <- read.table('https://stats.idre.ucla.edu/stat/r/faq/hsb2.csv', header=T, sep=",")
+head(hsb2)
+l <- reshape(hsb2, 
+  varying = c("read", "write", "math", "science", "socst"), 
+  v.names = "score",
+  timevar = "subj", 
+  times = c("read", "write", "math", "science", "socst"), 
+  new.row.names = 1:1000,
+  direction = "long")
+l.sort <- l[order(l$id),]
+l.sort[1:10,]
+```
+
+```{r}
+library(reshape)
+data_wide <- haven::read_dta("VARSTOCASES.dta")
+
+#Order of the varying vector are critical. 
+data_mid <- reshape(data_wide, 
+                     varying = c("Y11", "Y21","Y12","Y22", "Y13","Y23"),
+                     v.names = c("Y1","Y2"),
+                     timevar = "Time",
+                     times = c("1", "2", "3"),
+                     new.row.names = 1:9,
+                     direction = "long")
+data_long <- reshape(data_mid, 
+                     varying = c("Y1", "Y2"),
+                     v.names = c("Y"),
+                     timevar = "Sex",
+                     times = c("1", "2"),
+                     new.row.names = 1:18,
+                     direction = "long")
+```

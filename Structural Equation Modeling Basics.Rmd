@@ -1,0 +1,114 @@
+---
+title: "4 SEM Basics"
+author: "Ryan McLean"
+date: "October 18, 2019"
+output: html_document
+---
+
+#Setup
+If you need to reload the datasets and libraries, you can run the following. 
+```{r}
+library(devtools)
+library(tidyverse)
+library(Hmisc)
+library(data.table)
+library(plyr)
+library(psych)
+library(summarytools)
+library(car)
+```
+```{r}
+data(mtcars)
+iceCream <- haven::read_dta("IceCream.dta")
+exam <- haven::read_spss ("Examinations.sav")
+flavor <- read.csv(file="flavor2.csv", header=FALSE, sep = ",")
+relationship <- haven::read_dta("Relationship.dta")
+```
+
+#SEM Specific libraries
+These are the libraries that contain the easiest functions for SEM related functions
+```{r}
+library(lavaan)
+library(lavaanPlot)
+```
+
+
+#Confirmatory Factor Analysis
+Earlier, you created a scale. A scale is a simple average of all the items that you believe measure a specific construct. However, in SEM, you have the flexibility of creating a factor which will weight the influence of the item on the construct. That means that if one question measures our construct (e.g., depression) better than the other items, your model will reflect that. 
+```{r}
+RelSatModel <- 'satisfaction =~ rsat1 + rsat2 + rsat3 + rsat4' # Specify the model
+fit <- cfa(RelSatModel, data = relationship, missing = "FIML")
+summary(fit, standardized=TRUE,fit.measures=TRUE,rsq=TRUE)
+lavaanPlot(model = fit, node_options = list(shape = "box", fontname = "Helvetica"), 
+           edge_options = list(color = "grey"), 
+           coefs = TRUE, stand=TRUE)
+```
+
+#General SEM Model
+The syntax for defining a bigger SEM model is similar and will be shown below. While my model is fairly simple, you can include as many lines as you need in each section to specify your model
+```{r}
+model <- '
+#Latent Variables
+  satisfaction =~ rsat1 + rsat2 + rsat3 + rsat4
+
+#Regression Paths (dependent variable is on left, exogenous are on the right separated by +)
+  education ~ satisfaction + age + gender
+
+#Covariances/Correlation Paths
+  rsat1 ~~ rsat2
+'
+fit <- sem(model, data = relationship, missing = "FIML")
+summary(fit, standardized=TRUE,fit.measures=TRUE,rsquare=TRUE)
+lavaanPlot(model = fit, node_options = list(shape = "box", fontname = "Helvetica"), 
+           edge_options = list(color = "grey"), 
+           coefs = TRUE, stand=TRUE)
+```
+#Including Bootstrapping in your model
+When you run a model that includes mediation/indirect effects, it is necessary to bootstrap, the syntax should help you
+```{r}
+# Simply add the se and bootstrap options into your sem fit command and set a seed for reproduceable estimates
+set.seed(10)
+fit <- sem(model, data = relationship, missing = "FIML", se = "bootstrap", bootstrap = 100)
+```
+
+#Requesting modification indices
+While respecification should always be guided by theory, SEM tools provide a way to estimate which changes may significantly improve model fit, they can be requested.
+```{r}
+mi <- modindices(fit) # Requires that you have previously fitted an SEM model
+mi
+
+#You can also filter by a specific type. To request only error correlations
+mi[mi$op == "~~",]
+```
+
+# Testing Measurement Invariance
+```{r}
+library(semTools)
+RelSatModel <- '
+satisfaction =~ rsat1 + rsat2 + rsat3 + rsat4
+satisfaction ~ 0*1 # set the mean of the latent variable at zero
+' 
+measurementInvariance(model = RelSatModel, data = relationship, group = "gender", missing = "fiml", strict = TRUE)
+#optional
+weak.invariance   <- cfa(model=RelSatModel, data=relationship, group= "gendp1_1", missing = "fiml", group.equal="loadings")
+strong.invariance <- cfa(model=RelSatModel, data=relationship, group= "gendp1_1", missing = "fiml", group.equal=c("loadings", "intercepts"))
+strict.invariance <- cfa(model=RelSatModel, data=relationship, group= "gendp1_1", missing = "fiml", group.equal=c("loadings", "intercepts", "residuals"))
+
+summary(weak.invariance, fit.measures=TRUE)
+*** 
+summary(strong.invariance, fit.measures=TRUE)
+***
+summary(strict.invariance, fit.measures=TRUE)
+
+## Can I identify which item is the problem???
+```
+#Growth Curves
+https://cran.r-project.org/web/packages/growthcurver/vignettes/Growthcurver-vignette.html
+#Latent Class Analysis
+https://cran.r-project.org/web/packages/sBIC/vignettes/LatentClassAnalysis.pdf 
+#Moderation and Mediation
+The best website for these processes is available here
+https://ademos.people.uic.edu/Chapter14.html or if the website is discontinued, it is printed as a pdf in the folder. 
+```{r}
+
+```
